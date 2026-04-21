@@ -180,7 +180,7 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 // HINTS - Useful syscalls and functions for this phase:
 //   - object_path        : getting the target file path
 //   - fopen, fread, fseek: reading the file into memory
-//   - memchr             : safely finding the '\0' separating header and data
+//   - memchr          : safely finding the '\0' separating header and data
 //   - strncmp            : parsing the type string ("blob", "tree", "commit")
 //   - compute_hash       : re-hashing the read data for integrity verification
 //   - memcmp             : comparing the computed hash against the requested hash
@@ -188,8 +188,8 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 //
 // The caller is responsible for calling free(*data_out).
 // Returns 0 on success, -1 on error (file not found, corrupt, etc.).
-int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out) {
-    // Step 1: Build the file path from the hash
+int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_t *len_out){
+	// Step 1: Build the file path from the hash
     char path[512];
     object_path(id, path, sizeof(path));
 
@@ -207,10 +207,8 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
     size_t bytes_read = fread(buf, 1, file_size, f);
     fclose(f);
     if (bytes_read != (size_t)file_size) { free(buf); return -1; }
-    (void)id; (void)type_out; (void)data_out; (void)len_out;
-    return -1;
-}
-	 // Step 3: Parse the header to extract type string and size
+
+    // Step 3: Parse the header to extract type string and size
     unsigned char *null_byte = memchr(buf, '\0', file_size);
     if (!null_byte) { free(buf); return -1; }
 
