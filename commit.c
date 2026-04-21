@@ -194,8 +194,31 @@ int head_update(const ObjectID *new_commit) {
 //
 // Returns 0 on success, -1 on error.
 int commit_create(const char *message, ObjectID *commit_id_out) {
-    // TODO: Implement commit creation
-    // (See Lab Appendix for logical steps)
-    (void)message; (void)commit_id_out;
-    return -1;
+    // build tree from the current index (fails if nothing is staged)
+    Commit c;
+    memset(&c, 0, sizeof(c));
+    if (tree_from_index(&c.tree) != 0) return -1;
+
+    // read parent commit from HEAD (may not exist for first commit)
+    c.has_parent = (head_read(&c.parent) == 0);
+
+    // fill in author and timestamp
+    snprintf(c.author, sizeof(c.author), "%s", pes_author());
+    c.timestamp = (uint64_t)time(NULL);
+    snprintf(c.message, sizeof(c.message), "%s", message);
+
+    // serialize the commit to text format
+    void *commit_data;
+    size_t commit_len;
+    if (commit_serialize(&c, &commit_data, &commit_len) != 0) return -1;
+
+    // write commit object to the store
+    if (object_write(OBJ_COMMIT, commit_data, commit_len, commit_id_out) != 0) {
+        free(commit_data);
+        return -1;
+    }
+    free(commit_data);
+
+    // update HEAD to point to the new commit
+    return head_update(commit_id_out);
 }
