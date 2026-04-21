@@ -166,6 +166,10 @@ int index_load(Index *index) {
 //   - rename                           : atomically moving the temp file over the old index
 //
 // Returns 0 on success, -1 on error.
+static int compare_entries(const void *a, const void *b) {
+    return strcmp(((const IndexEntry *)a)->path,
+                  ((const IndexEntry *)b)->path);
+}
 int index_save(const Index *index) {
     // sort entries by path — use heap to avoid stack overflow
     Index *sorted = malloc(sizeof(Index));
