@@ -94,7 +94,7 @@ int object_exists(const ObjectID *id) {
 //
 // Returns 0 on success, -1 on error.
 int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out) {
-    // Step 1: Build the full object — header + data
+	// Step 1: Build the full object — header + data
     const char *type_str;
     if (type == OBJ_BLOB) type_str = "blob";
     else if (type == OBJ_TREE) type_str = "tree";
@@ -111,17 +111,17 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
 
     memcpy(full_object, header, header_len);
     memcpy(full_object + header_len, data, len);
-    (void)type; (void)data; (void)len; (void)id_out;
-    return -1;
-	// Step 2: Compute SHA-256 hash of the full object
+
+    // Step 2: Compute SHA-256 hash of the full object
     compute_hash(full_object, full_len, id_out);
 
     // Step 3: Check if object already exists (deduplication)
     if (object_exists(id_out)) {
         free(full_object);
         return 0;
-}
-	 // Step 4: Create shard directory (.pes/objects/XX/)
+    }
+
+    // Step 4: Create shard directory (.pes/objects/XX/)
     char hex[HASH_HEX_SIZE + 1];
     hash_to_hex(id_out, hex);
     char shard_dir[512];
@@ -147,7 +147,8 @@ int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out
         close(fd);
         return -1;
     }
-	 // Step 6: fsync() the temporary file to ensure data reaches disk
+
+    // Step 6: fsync() the temporary file to ensure data reaches disk
     fsync(fd);
     close(fd);
 
