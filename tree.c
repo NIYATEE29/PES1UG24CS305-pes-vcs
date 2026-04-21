@@ -129,6 +129,68 @@ int tree_serialize(const Tree *tree, void **data_out, size_t *len_out) {
 //   - object_write    : save that binary buffer to the store as OBJ_TREE
 //
 // Returns 0 on success, -1 on error.
+int object_write(ObjectType type, const void *data, size_t len, ObjectID *id_out);
+int index_load(Index *index);
+
+// recursive helper to build tree for a given directory level
+static int write_tree_level(IndexEntry *entries, int count, const char *prefix, ObjectID *id_out) {
+    Tree tree;
+    tree.count = 0;
+    int prefix_len = strlen(prefix);
+
+    int i = 0;
+    while (i < count) {
+        const char *path = entries[i].path + prefix_len;
+        char *slash = strchr(path, '/');
+
+        if (slash == NULL) {
+            // file at this level — add directly to tree
+            TreeEntry *te = &tree.entries[tree.count];
+            te->mode = entries[i].mode;
+            te->hash = entries[i].hash;
+            strncpy(te->name, path, sizeof(te->name) - 1);
+            te->name[sizeof(te->name) - 1] = '\0';
+            tree.count++;
+            i++;
+        } else {
+            // subdirectory — group entries with same dir prefix
+            char dir_name[256];
+            size_t dir_len = slash - path;
+            strncpy(dir_name, path, dir_len);
+            dir_name[dir_len] = '\0';
+
+            char new_prefix[512];
+            snprintf(new_prefix, sizeof(new_prefix), "%s%s/", prefix, dir_name);
+
+            // count how many entries share this subdirectory
+            int j = i;
+            while (j < count && strncmp(entries[j].path + prefix_len, dir_name, dir_len) == 0
+                   && entries[j].path[prefix_len + dir_len] == '/') {
+                j++;
+            }
+
+            // recurse into subdirectory
+            TreeEntry *te = &tree.entries[tree.count];
+            te->mode = 040000;
+            snprintf(te->name, sizeof(te->name), "%s", dir_name);
+
+            if (write_tree_level(entries + i, j - i, new_prefix, &te->hash) != 0)
+                return -1;
+
+            tree.count++;
+            i = j;
+        }
+    }
+
+    // serialize the tree and write it to the object store
+    void *tree_data;
+    size_t tree_len;
+    if (tree_serialize(&tree, &tree_data, &tree_len) != 0) return -1;
+
+    int ret = object_write(OBJ_TREE, tree_data, tree_len, id_out);
+    free(tree_data);
+    return ret;
+}
 int tree_from_index(ObjectID *id_out) {
     // load the staged files from the index
     Index index;
