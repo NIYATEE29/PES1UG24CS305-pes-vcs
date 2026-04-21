@@ -210,3 +210,32 @@ int object_read(const ObjectID *id, ObjectType *type_out, void **data_out, size_
     (void)id; (void)type_out; (void)data_out; (void)len_out;
     return -1;
 }
+	 // Step 3: Parse the header to extract type string and size
+    unsigned char *null_byte = memchr(buf, '\0', file_size);
+    if (!null_byte) { free(buf); return -1; }
+
+    // Step 4: Verify integrity — recompute hash and compare
+    ObjectID computed;
+    compute_hash(buf, file_size, &computed);
+    if (memcmp(computed.hash, id->hash, HASH_SIZE) != 0) {
+        free(buf);
+        return -1;
+    }
+
+    // Step 5: Set *type_out to the parsed ObjectType
+    if (strncmp((char *)buf, "blob ", 5) == 0) *type_out = OBJ_BLOB;
+    else if (strncmp((char *)buf, "tree ", 5) == 0) *type_out = OBJ_TREE;
+    else if (strncmp((char *)buf, "commit ", 7) == 0) *type_out = OBJ_COMMIT;
+    else { free(buf); return -1; }
+
+    // Step 6: Allocate buffer, copy data portion (after the \0), set *data_out and *len_out
+    size_t data_offset = (null_byte - buf) + 1;
+    *len_out = file_size - data_offset;
+
+    *data_out = malloc(*len_out);
+    if (!*data_out) { free(buf); return -1; }
+
+    memcpy(*data_out, buf + data_offset, *len_out);
+    free(buf);
+    return 0;
+}
